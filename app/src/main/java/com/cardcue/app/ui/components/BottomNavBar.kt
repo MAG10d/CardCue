@@ -11,29 +11,32 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.cardcue.app.ui.navigation.Screen
 
 @Composable
 fun BottomNavBar(
+    selectedItem: String,
+    onItemSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     NavigationBar(
         modifier = modifier
     ) {
         NavigationBarItem(
-            selected = true,
-            onClick = { /* No-op */ },
+            selected = selectedItem == Screen.Home.route,
+            onClick = { onItemSelected(Screen.Home.route) },
             icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "Home") },
             label = { Text("Home") }
         )
         NavigationBarItem(
-            selected = false,
-            onClick = { /* No-op */ },
+            selected = selectedItem == Screen.Calendar.route,
+            onClick = { onItemSelected(Screen.Calendar.route) },
             icon = { Icon(imageVector = Icons.Default.DateRange, contentDescription = "Calendar") },
             label = { Text("Calendar") }
         )
         NavigationBarItem(
-            selected = false,
-            onClick = { /* No-op */ },
+            selected = selectedItem == Screen.Settings.route,
+            onClick = { onItemSelected(Screen.Settings.route) },
             icon = { Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings") },
             label = { Text("Settings") }
         )
@@ -43,5 +46,5 @@ fun BottomNavBar(
 @Preview
 @Composable
 fun BottomNavBarPreview() {
-    BottomNavBar()
+    BottomNavBar(selectedItem = Screen.Home.route, onItemSelected = {})
 }
