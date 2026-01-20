@@ -20,7 +20,7 @@ interface BillDao {
     suspend fun delete(bill: CreditCardBill)
 
     @Query("SELECT * from bills WHERE id = :id")
-    suspend fun getBill(id: Int): CreditCardBill?
+    fun getBill(id: Int): Flow<CreditCardBill?>
 
     @Query("SELECT * from bills")
     fun getAllBills(): Flow<List<CreditCardBill>>

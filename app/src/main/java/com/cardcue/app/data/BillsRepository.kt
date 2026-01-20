@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface BillsRepository {
     fun getAllBillsStream(): Flow<List<CreditCardBill>>
-    suspend fun getBillStream(id: Int): CreditCardBill?
+    fun getBillStream(id: Int): Flow<CreditCardBill?>
     suspend fun insertBill(bill: CreditCardBill)
     suspend fun deleteBill(bill: CreditCardBill)
     suspend fun updateBill(bill: CreditCardBill)
@@ -13,7 +13,7 @@ interface BillsRepository {
 class OfflineBillsRepository(private val billDao: BillDao) : BillsRepository {
     override fun getAllBillsStream(): Flow<List<CreditCardBill>> = billDao.getAllBills()
 
-    override suspend fun getBillStream(id: Int): CreditCardBill? = billDao.getBill(id)
+    override fun getBillStream(id: Int): Flow<CreditCardBill?> = billDao.getBill(id)
 
     override suspend fun insertBill(bill: CreditCardBill) = billDao.insert(bill)
 

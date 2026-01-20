@@ -16,6 +16,7 @@ import com.cardcue.app.data.CreditCardBill
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -96,9 +97,25 @@ class BillEntryViewModel(private val repository: BillsRepository) : ViewModel() 
 
     fun loadBill(billId: Int) {
         viewModelScope.launch {
-            repository.getBillStream(billId)?.let { bill ->
-                _uiState.value = bill.toUiState()
-            }
+            repository.getBillStream(billId)
+                .filterNotNull()
+                .collect { bill ->
+                    _uiState.value = bill.toUiState()
+                }
+        }
+    }
+
+    fun toggleBillStatus() {
+        val currentStatus = _uiState.value.status
+        val newStatus = if (currentStatus == BillStatus.PAID) BillStatus.UNPAID else BillStatus.PAID
+
+        // Update local state immediately for UI responsiveness
+        val updatedState = _uiState.value.copy(status = newStatus)
+        _uiState.value = updatedState
+
+        // Persist to DB
+        viewModelScope.launch {
+            repository.updateBill(updatedState.toBill())
         }
     }
 
