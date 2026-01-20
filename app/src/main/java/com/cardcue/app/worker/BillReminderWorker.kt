@@ -80,7 +80,7 @@ class BillReminderWorker(
 
     private fun showNotification(context: Context, id: Int, title: String, message: String) {
         // Permission check for Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMIS) {
+        if (Build.VERSION.SDK_INT >= 33) {
             if (ActivityCompat.checkSelfPermission(
                     context,
                     Manifest.permission.POST_NOTIFICATIONS
