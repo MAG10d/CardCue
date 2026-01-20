@@ -13,6 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -26,6 +30,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.cardcue.app.model.BillStatus
 import com.cardcue.app.model.CreditCardBill
+import com.cardcue.app.ui.AddBillScreen
 import com.cardcue.app.ui.CalendarScreen
 import com.cardcue.app.ui.CreditCardItem
 import com.cardcue.app.ui.components.BottomNavBar
@@ -104,6 +109,18 @@ class MainActivity : ComponentActivity() {
                                     launchSingleTop = true
                                     restoreState = true
                                 }
+                            },
+                            onAddBillClick = {
+                                navController.navigate(Screen.AddBill.route)
+                            }
+                        )
+                    }
+                    composable(Screen.AddBill.route) {
+                        AddBillScreen(
+                            onBackClick = { navController.popBackStack() },
+                            onSaveClick = { bankName, _, _, _ ->
+                                println("Bill Saved: $bankName")
+                                navController.popBackStack()
                             }
                         )
                     }
@@ -155,7 +172,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun HomeScreen(
     bills: List<CreditCardBill>,
-    onBottomNavClick: (String) -> Unit
+    onBottomNavClick: (String) -> Unit,
+    onAddBillClick: () -> Unit
 ) {
     Scaffold(
         bottomBar = {
@@ -163,6 +181,11 @@ fun HomeScreen(
                 selectedItem = Screen.Home.route,
                 onItemSelected = onBottomNavClick
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddBillClick) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Bill")
+            }
         }
     ) { innerPadding ->
         Column(
