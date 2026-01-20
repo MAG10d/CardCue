@@ -1,8 +1,17 @@
 package com.cardcue.app
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,18 +30,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import com.cardcue.app.data.BillEntity
 import com.cardcue.app.model.BillStatus
 import com.cardcue.app.model.CreditCardBill
 import com.cardcue.app.ui.AddBillScreen
 import com.cardcue.app.ui.CalendarScreen
 import com.cardcue.app.ui.CreditCardItem
+import com.cardcue.app.ui.HomeViewModel
+import com.cardcue.app.ui.HomeViewModelFactory
+import com.cardcue.app.ui.SettingsScreen
 import com.cardcue.app.ui.components.BottomNavBar
 import com.cardcue.app.ui.components.StatBox
 import com.cardcue.app.ui.navigation.Screen
@@ -43,6 +54,9 @@ import com.cardcue.app.ui.theme.RedGradientEnd
 import com.cardcue.app.ui.theme.RedGradientStart
 import com.cardcue.app.ui.theme.StatTextLate
 import com.cardcue.app.ui.theme.StatTextPaid
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 // Helpers for Icons
 object BankIcons {
@@ -52,52 +66,60 @@ object BankIcons {
     const val OTHER = 4
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+
+    private lateinit var viewModel: HomeViewModel
+    private var isLocked = false
+    private var lastBackgroundTime = 0L
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val application = application as CardCueApplication
+        val factory = HomeViewModelFactory(application.billRepository, application.userPreferencesRepository)
+        viewModel = ViewModelProvider(this, factory)[HomeViewModel::class.java]
+
+        // Lifecycle observer for Biometric Lock
+        lifecycle.addObserver(LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                lastBackgroundTime = System.currentTimeMillis()
+            } else if (event == Lifecycle.Event.ON_RESUME) {
+                // Check if should lock
+                if (System.currentTimeMillis() - lastBackgroundTime > 60000) { // 1 minute
+                    // Check settings asynchronously (safe for MVP)
+                    val isBioEnabled = viewModel.isBiometricEnabled.value
+                    if (isBioEnabled && !isLocked) {
+                        isLocked = true
+                        showBiometricPrompt()
+                    }
+                }
+            }
+        })
+
         setContent {
-            CardCueTheme {
+            val isDarkMode = viewModel.isDarkMode.collectAsState(initial = false).value
+
+            CardCueTheme(darkTheme = isDarkMode) {
                 val navController = rememberNavController()
 
-                // Mock Data for July 2025
-                val bills = listOf(
-                    CreditCardBill(
-                        bankName = "HDFC Bank",
-                        cardNumber = "4582",
-                        totalDue = "₹12,450.00",
-                        minDue = "₹850.00",
-                        dueDate = "03 Jul",
-                        dueDateIso = "2025-07-03",
-                        daysLeft = 0, // Logic for days left not dynamic for mock
-                        cardColor = listOf(RedGradientStart, RedGradientEnd),
-                        status = BillStatus.PAID,
-                        logoResId = BankIcons.HDFC
-                    ),
-                    CreditCardBill(
-                        bankName = "IndusInd Bank",
-                        cardNumber = "9012",
-                        totalDue = "₹45,200.50",
-                        minDue = "₹2,500.00",
-                        dueDate = "05 Jul",
-                        dueDateIso = "2025-07-05",
-                        daysLeft = 2,
-                        cardColor = listOf(PurpleGradientStart, PurpleGradientEnd),
-                        status = BillStatus.PAID,
-                        logoResId = BankIcons.INDUSIND
-                    ),
-                    CreditCardBill(
-                        bankName = "ICICI Bank",
-                        cardNumber = "3341",
-                        totalDue = "₹5,600.00",
-                        minDue = "₹0.00",
-                        dueDate = "30 Jul",
-                        dueDateIso = "2025-07-30",
-                        daysLeft = 27,
-                        cardColor = listOf(Color(0xFF11998e), Color(0xFF38ef7d)),
-                        status = BillStatus.DUE,
-                        logoResId = BankIcons.ICICI
+                // Observe Real Data
+                val billsEntities = viewModel.allBills.collectAsState(initial = emptyList()).value
+
+                // Map Entity to UI Model (simplified for HomeScreen consumption)
+                val bills = billsEntities.map { entity ->
+                     CreditCardBill(
+                        bankName = entity.bankName,
+                        cardNumber = entity.cardNumber,
+                        totalDue = "₹${entity.amount}",
+                        minDue = "₹${entity.amount / 10}",
+                        dueDate = Instant.ofEpochMilli(entity.dueDate).atZone(ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("dd MMM")),
+                        dueDateIso = Instant.ofEpochMilli(entity.dueDate).atZone(ZoneId.systemDefault()).toLocalDate().toString(),
+                        daysLeft = 0,
+                        cardColor = if (entity.bankName.contains("HDFC")) listOf(RedGradientStart, RedGradientEnd) else listOf(PurpleGradientStart, PurpleGradientEnd),
+                        status = if (entity.isPaid) BillStatus.PAID else BillStatus.DUE,
+                        logoResId = 1
                     )
-                )
+                }
 
                 NavHost(navController = navController, startDestination = Screen.Home.route) {
                     composable(Screen.Home.route) {
@@ -115,18 +137,9 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-                    composable(Screen.AddBill.route) {
-                        AddBillScreen(
-                            onBackClick = { navController.popBackStack() },
-                            onSaveClick = { bankName, _, _, _ ->
-                                println("Bill Saved: $bankName")
-                                navController.popBackStack()
-                            }
-                        )
-                    }
                     composable(Screen.Calendar.route) {
                         CalendarScreen(
-                            bills = bills,
+                            viewModel = viewModel,
                             onBottomNavClick = { route ->
                                 navController.navigate(route) {
                                     popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -137,35 +150,69 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable(Screen.Settings.route) {
-                        // Placeholder for Settings
-                        Scaffold(
-                            bottomBar = {
-                                BottomNavBar(
-                                    selectedItem = Screen.Settings.route,
-                                    onItemSelected = { route ->
-                                        navController.navigate(route) {
-                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                )
+                        SettingsScreen(
+                            viewModel = viewModel,
+                            onBackClick = {
+                                if (navController.previousBackStackEntry != null) {
+                                    navController.popBackStack()
+                                } else {
+                                    navController.navigate(Screen.Home.route)
+                                }
                             }
-                        ) { innerPadding ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(innerPadding),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
-                            ) {
-                                Text("Settings Screen", style = MaterialTheme.typography.headlineMedium)
+                        )
+                    }
+                    composable(Screen.AddBill.route) {
+                        AddBillScreen(
+                            onBackClick = { navController.popBackStack() },
+                            onSaveClick = { bankName, cardNumber, totalDue, dueDateStr ->
+                                try {
+                                    // VERY Basic parsing DD/MM/YYYY
+                                    val parts = dueDateStr.split("/")
+                                    val day = parts[0].toInt()
+                                    val month = parts[1].toInt()
+                                    val year = parts[2].toInt()
+                                    val date = java.time.LocalDate.of(year, month, day)
+                                    val epoch = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                                    viewModel.addBill(
+                                        BillEntity(
+                                            bankName = bankName,
+                                            cardNumber = cardNumber,
+                                            amount = totalDue.toDoubleOrNull() ?: 0.0,
+                                            dueDate = epoch,
+                                            isPaid = false,
+                                            colorArgb = 0
+                                        )
+                                    )
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                                navController.popBackStack()
                             }
-                        }
+                        )
                     }
                 }
             }
         }
+    }
+
+    private fun showBiometricPrompt() {
+        val executor = ContextCompat.getMainExecutor(this)
+        val biometricPrompt = BiometricPrompt(this, executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    isLocked = false
+                }
+            })
+
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Biometric Login")
+            .setSubtitle("Log in using your biometric credential")
+            .setNegativeButtonText("Cancel")
+            .build()
+
+        biometricPrompt.authenticate(promptInfo)
     }
 }
 

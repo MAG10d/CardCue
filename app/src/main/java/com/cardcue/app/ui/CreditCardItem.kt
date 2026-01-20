@@ -71,24 +71,6 @@ fun CreditCardItem(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Use ImageVector.vectorResource if it was a drawable, but here we use Icon with vector directly?
-                        // The model has logoResId which is Int. We can load it via painterResource(id = bill.logoResId) or ImageVector.vectorResource
-                        // But wait, the previous instruction said "map them to standard Material Icons".
-                        // Standard Material Icons are ImageVectors, not Int resource IDs usually, unless we wrap them.
-                        // Let's assume for this specific component we might need to handle the Int as a resource ID.
-                        // However, to make it compatible with "Icons.Default.X" which are ImageVectors,
-                        // we might need to change the model to store ImageVector OR resolve the Int to Vector.
-                        // Since the user asked for "Int resource IDs", I will assume we are passing R.drawable.x or we need a way to resolve it.
-                        // But wait, the user said "map them to standard Material Icons... e.g. Icons.Default.AccountBalance".
-                        // Icons.Default.AccountBalance is an ImageVector object, it doesn't have a stable Int ID we can easily store in a data class unless we create a mapping.
-                        // To allow the data class to hold "Int" as requested but use Vectors, I'll use a wrapper or just use the Int to lookup a Vector.
-                        // FOR SIMPLICITY: I will interpret "Logo URL... String (or Int...)" as strict instructions.
-                        // BUT "Use Icons.Default..." implies objects.
-                        // I will assume `logoResId` is an Int, but for the mock data I will need to pass an Int that represents the Icon.
-                        // Actually, it's easier to just store `imageVector: ImageVector` in the model for the purpose of this mock app,
-                        // BUT the requirement was "Int resource ID".
-                        // Okay, I will implement a helper to map an arbitrary Int ID to an ImageVector for now.
-
                         val iconVector = getIconForId(bill.logoResId)
 
                         Icon(

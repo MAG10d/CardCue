@@ -1,5 +1,6 @@
 package com.cardcue.app.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,25 +41,43 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cardcue.app.data.BillEntity
+import com.cardcue.app.model.BillStatus
 import com.cardcue.app.model.CreditCardBill
 import com.cardcue.app.ui.components.BottomNavBar
 import com.cardcue.app.ui.navigation.Screen
 import com.cardcue.app.ui.theme.CalendarSelectedDate
 import com.cardcue.app.ui.theme.CalendarSelectedDateText
+import com.cardcue.app.ui.theme.PurpleGradientEnd
+import com.cardcue.app.ui.theme.PurpleGradientStart
+import com.cardcue.app.ui.theme.RedGradientEnd
+import com.cardcue.app.ui.theme.RedGradientStart
+import com.cardcue.app.ui.theme.StatTextPaid
+import com.cardcue.app.ui.theme.StatTextLate
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
 fun CalendarScreen(
-    bills: List<CreditCardBill>,
+    viewModel: HomeViewModel,
     onBottomNavClick: (String) -> Unit
 ) {
-    var currentMonth by remember { mutableStateOf(YearMonth.of(2025, 7)) }
+    val billsEntities by viewModel.allBills.collectAsState()
+
+    // Convert entities to logic friendly list
+    val bills = billsEntities
+
+    var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
-    val today = LocalDate.now()
+
+    // Formatter
+    val dateFormatter = DateTimeFormatter.ofPattern("dd MMM")
 
     Scaffold(
         bottomBar = { BottomNavBar(selectedItem = Screen.Calendar.route, onItemSelected = onBottomNavClick) }
@@ -116,17 +136,13 @@ fun CalendarScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            // Filtered List
+            // Filtered List Logic
             val filteredBills = bills.filter { bill ->
-                try {
-                    val billDate = LocalDate.parse(bill.dueDateIso)
-                    if (selectedDate != null) {
-                        billDate == selectedDate
-                    } else {
-                        YearMonth.from(billDate) == currentMonth
-                    }
-                } catch (e: Exception) {
-                    false
+                val billDate = Instant.ofEpochMilli(bill.dueDate).atZone(ZoneId.systemDefault()).toLocalDate()
+                if (selectedDate != null) {
+                    billDate == selectedDate
+                } else {
+                    YearMonth.from(billDate) == currentMonth
                 }
             }
 
@@ -134,7 +150,23 @@ fun CalendarScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             ) {
                 items(filteredBills) { bill ->
-                    CreditCardItem(bill = bill)
+                    // Map Entity to UI Model for reuse
+                    // For now, we reuse CreditCardItem but need to adapt it to Entity or create a mapping
+                    // Since CreditCardItem expects CreditCardBill (the UI model), we should map it.
+                    val uiBill = CreditCardBill(
+                        bankName = bill.bankName,
+                        cardNumber = bill.cardNumber,
+                        totalDue = "₹${bill.amount}",
+                        minDue = "₹${bill.amount / 10}", // Mock calculation
+                        dueDate = Instant.ofEpochMilli(bill.dueDate).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFormatter),
+                        dueDateIso = Instant.ofEpochMilli(bill.dueDate).atZone(ZoneId.systemDefault()).toLocalDate().toString(),
+                        daysLeft = 0, // Logic omitted for brevity
+                        cardColor = if (bill.bankName.contains("HDFC")) listOf(RedGradientStart, RedGradientEnd) else listOf(PurpleGradientStart, PurpleGradientEnd), // Simple logic
+                        status = if (bill.isPaid) BillStatus.PAID else BillStatus.DUE,
+                        logoResId = 1 // Default icon
+                    )
+
+                    CreditCardItem(bill = uiBill)
                 }
             }
         }
@@ -144,19 +176,14 @@ fun CalendarScreen(
 @Composable
 fun CalendarGrid(
     yearMonth: YearMonth,
-    bills: List<CreditCardBill>,
+    bills: List<BillEntity>,
     selectedDate: LocalDate?,
     onDateSelected: (LocalDate) -> Unit
 ) {
     val daysInMonth = yearMonth.lengthOfMonth()
-    val firstDayOfMonth = yearMonth.atDay(1).dayOfWeek.value % 7 // Sunday = 0, Monday = 1... wait. DayOfWeek.MONDAY.value is 1. Sunday is 7.
-    // We want Sunday to be the first column.
-    // If DayOfWeek is MON(1), we want index 1.
-    // If DayOfWeek is SUN(7), we want index 0.
     val startOffset = if (yearMonth.atDay(1).dayOfWeek == DayOfWeek.SUNDAY) 0 else yearMonth.atDay(1).dayOfWeek.value
 
     val days = (1..daysInMonth).toList()
-    val totalCells = startOffset + daysInMonth
 
     Column {
         // Days of Week Header
@@ -176,22 +203,24 @@ fun CalendarGrid(
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
-            modifier = Modifier.height(300.dp), // Fixed height for grid
+            modifier = Modifier.height(300.dp),
             userScrollEnabled = false
         ) {
-            // Empty cells for offset
             items(startOffset) {
                 Box(modifier = Modifier.aspectRatio(1f))
             }
 
-            // Day cells
             items(days) { day ->
                 val date = yearMonth.atDay(day)
                 val isSelected = date == selectedDate
                 val isToday = date == LocalDate.now()
+
+                // Find bills for this day
                 val billsOnDate = bills.filter {
-                    try { LocalDate.parse(it.dueDateIso) == date } catch (e: Exception) { false }
+                    Instant.ofEpochMilli(it.dueDate).atZone(ZoneId.systemDefault()).toLocalDate() == date
                 }
+                val hasUnpaid = billsOnDate.any { !it.isPaid }
+                val hasPaid = billsOnDate.any { it.isPaid }
 
                 Box(
                     modifier = Modifier
@@ -213,14 +242,18 @@ fun CalendarGrid(
                         )
 
                         if (billsOnDate.isNotEmpty()) {
-                            // Show small icon for the first bill
-                            val icon = getIconForId(billsOnDate.first().logoResId)
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = "Bill Due",
-                                tint = if (isSelected) CalendarSelectedDateText else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(12.dp)
-                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                if (hasUnpaid) {
+                                    Canvas(modifier = Modifier.size(6.dp)) {
+                                        drawCircle(color = StatTextLate)
+                                    }
+                                }
+                                if (hasPaid) {
+                                    Canvas(modifier = Modifier.size(6.dp)) {
+                                        drawCircle(color = StatTextPaid)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
