@@ -15,3 +15,12 @@ val RedGradientStart = Color(0xFFD3545E)
 val RedGradientEnd = Color(0xFFC7434D)
 val DaysLeftTagBackground = Color(0xFFFFE0B2)
 val DaysLeftTagText = Color(0xFFE65100)
+
+// Dashboard Stats Colors
+val StatBoxSelected = Color(0xFFE0E0E0)
+val StatTextLate = Color(0xFFD32F2F)
+val StatTextPaid = Color(0xFF388E3C)
+
+// Purple Gradient
+val PurpleGradientStart = Color(0xFFB71C79)
+val PurpleGradientEnd = Color(0xFF8E145D)
