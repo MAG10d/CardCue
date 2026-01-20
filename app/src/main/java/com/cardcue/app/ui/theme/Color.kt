@@ -24,3 +24,7 @@ val StatTextPaid = Color(0xFF388E3C)
 // Purple Gradient
 val PurpleGradientStart = Color(0xFFB71C79)
 val PurpleGradientEnd = Color(0xFF8E145D)
+
+// Calendar Colors
+val CalendarSelectedDate = Color(0xFF80CBC4) // Teal 200
+val CalendarSelectedDateText = Color(0xFF004D40) // Dark Teal for contrast
