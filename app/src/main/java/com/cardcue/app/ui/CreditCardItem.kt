@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -214,10 +216,10 @@ fun CreditCardItem(
 // In a real app, these would be R.drawable.hdfc_logo etc.
 fun getIconForId(id: Int): ImageVector {
     return when (id) {
-        1 -> Icons.Default.AccountBox // Placeholder for AccountBalance if not available in Core
-        2 -> Icons.Default.ShoppingCart
-        3 -> Icons.Default.CreditCard
-        else -> Icons.Default.CreditCard
+        1 -> Icons.Filled.AccountBox // Placeholder for AccountBalance if not available in Core
+        2 -> Icons.Filled.ShoppingCart
+        3 -> Icons.Filled.CreditCard
+        else -> Icons.Filled.CreditCard
     }
 }
 
