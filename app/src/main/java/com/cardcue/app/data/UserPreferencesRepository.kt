@@ -18,6 +18,8 @@ class UserPreferencesRepository(private val context: Context) {
     private val USE_DYNAMIC_COLORS = booleanPreferencesKey("use_dynamic_colors")
     private val IS_BIOMETRIC_ENABLED = booleanPreferencesKey("is_biometric_enabled")
     private val REMINDER_TIME = longPreferencesKey("reminder_time") // Minutes from midnight
+    private val MONTHLY_SALARY = androidx.datastore.preferences.core.doublePreferencesKey("monthly_salary")
+    private val PAYDAY = androidx.datastore.preferences.core.intPreferencesKey("payday")
 
     val isDarkMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[IS_DARK_MODE] ?: false
@@ -33,6 +35,14 @@ class UserPreferencesRepository(private val context: Context) {
 
     val reminderTime: Flow<Long> = context.dataStore.data.map { preferences ->
         preferences[REMINDER_TIME] ?: 540L // Default 9:00 AM (9*60)
+    }
+
+    val monthlySalary: Flow<Double> = context.dataStore.data.map { preferences ->
+        preferences[MONTHLY_SALARY] ?: 0.0
+    }
+
+    val payday: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[PAYDAY] ?: 1 // Default to 1st of the month
     }
 
     suspend fun setDarkMode(enabled: Boolean) {
@@ -56,6 +66,18 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun setReminderTime(minutesFromMidnight: Long) {
         context.dataStore.edit { preferences ->
             preferences[REMINDER_TIME] = minutesFromMidnight
+        }
+    }
+
+    suspend fun setMonthlySalary(salary: Double) {
+        context.dataStore.edit { preferences ->
+            preferences[MONTHLY_SALARY] = salary
+        }
+    }
+
+    suspend fun setPayday(day: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PAYDAY] = day
         }
     }
 }

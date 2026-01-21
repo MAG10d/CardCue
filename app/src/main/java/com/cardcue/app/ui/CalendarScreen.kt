@@ -42,8 +42,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cardcue.app.data.BillEntity
+import com.cardcue.app.data.CardEntity
 import com.cardcue.app.model.BillStatus
-import com.cardcue.app.model.CreditCardBill
+import com.cardcue.app.model.CardUiState
 import com.cardcue.app.ui.components.BottomNavBar
 import com.cardcue.app.ui.navigation.Screen
 import com.cardcue.app.ui.theme.CalendarSelectedDate
@@ -68,10 +69,25 @@ fun CalendarScreen(
     viewModel: HomeViewModel,
     onBottomNavClick: (String) -> Unit
 ) {
-    val billsEntities by viewModel.allBills.collectAsState()
+    val cardUiStates by viewModel.cardUiStates.collectAsState()
 
-    // Convert entities to logic friendly list
-    val bills = billsEntities
+    // We need to flatten cardUiStates to get all bills if we want to show all history,
+    // BUT HomeViewModel only exposes *Latest* bill in CardUiState.
+    // To support full calendar history, we really should have exposed `allBills` joined with `Card`.
+    // However, `HomeViewModel` does expose `allBills` (raw list of bills).
+    // We can use `allBills` but we need to fetch Card info for each bill to display Bank Name/Color.
+
+    // For this refactor, I'll stick to the existing `allBills` flow in ViewModel which I kept.
+    // I need to join it with Cards.
+    // Ideally, ViewModel should provide `billsWithCardInfo`.
+    // Since I can't easily change ViewModel signature right now without breaking other things or making it complex,
+    // I will try to map `allBills` and match with `cardUiStates` (which has card info).
+    // This is inefficient but works for small datasets.
+
+    val allBills by viewModel.allBills.collectAsState()
+
+    // Helper map to look up card details
+    val cardMap = cardUiStates.associate { it.card.id to it.card }
 
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -122,7 +138,7 @@ fun CalendarScreen(
             // Calendar Grid
             CalendarGrid(
                 yearMonth = currentMonth,
-                bills = bills,
+                bills = allBills,
                 selectedDate = selectedDate,
                 onDateSelected = { selectedDate = it }
             )
@@ -137,7 +153,7 @@ fun CalendarScreen(
             )
 
             // Filtered List Logic
-            val filteredBills = bills.filter { bill ->
+            val filteredBills = allBills.filter { bill ->
                 val billDate = Instant.ofEpochMilli(bill.dueDate).atZone(ZoneId.systemDefault()).toLocalDate()
                 if (selectedDate != null) {
                     billDate == selectedDate
@@ -150,25 +166,18 @@ fun CalendarScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             ) {
                 items(filteredBills) { bill ->
-                    // Map Entity to UI Model for reuse
-                    // For now, we reuse CreditCardItem but need to adapt it to Entity or create a mapping
-                    // Since CreditCardItem expects CreditCardBill (the UI model), we should map it.
-                    val uiBill = CreditCardBill(
-                        bankName = bill.bankName,
-                        cardNumber = bill.cardNumber,
-                        totalDue = "₹${bill.amount}",
-                        minDue = "₹${bill.amount / 10}", // Mock calculation
-                        dueDate = Instant.ofEpochMilli(bill.dueDate).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFormatter),
-                        dueDateIso = Instant.ofEpochMilli(bill.dueDate).atZone(ZoneId.systemDefault()).toLocalDate().toString(),
-                        daysLeft = 0, // Logic omitted for brevity
-                        cardColor = if (bill.bankName.contains("HDFC")) listOf(RedGradientStart, RedGradientEnd) else listOf(PurpleGradientStart, PurpleGradientEnd), // Simple logic
-                        status = if (bill.isPaid) BillStatus.PAID else BillStatus.DUE,
-                        logoResId = 1 // Default icon
+                    // Try to find card info
+                    // If card is deleted or not found, use placeholder
+                    val card = cardMap[bill.cardId] ?: CardEntity(0, "Unknown", "****", Color.Gray.value.toInt())
+
+                    val cardUiState = CardUiState(
+                        card = card,
+                        latestBill = bill // We show this specific bill as "latest" just for UI rendering
                     )
 
                     CreditCardItem(
-                        bill = uiBill,
-                        onItemClick = {} // Placeholder or navigation logic
+                        cardState = cardUiState,
+                        onItemClick = {} // Placeholder
                     )
                 }
             }
@@ -241,7 +250,7 @@ fun CalendarGrid(
                         Text(
                             text = day.toString(),
                             fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Normal,
-                            color = if (isSelected) CalendarSelectedDateText else Color.Black
+                            color = if (isSelected) CalendarSelectedDateText else MaterialTheme.colorScheme.onSurface
                         )
 
                         if (billsOnDate.isNotEmpty()) {

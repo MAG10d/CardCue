@@ -19,10 +19,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.cardcue.app.model.BillStatus
-import com.cardcue.app.model.CreditCardBill 
+import com.cardcue.app.model.CardUiState
+import java.text.NumberFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 
-// Internal helper to ensure icons always work
 object IconUtils {
     fun getBankIcon(bankName: String): ImageVector {
         return when {
@@ -35,21 +39,23 @@ object IconUtils {
 
 @Composable
 fun CreditCardItem(
-    bill: CreditCardBill,
-    onItemClick: (Int) -> Unit
+    cardState: CardUiState,
+    onItemClick: () -> Unit
 ) {
-    // 1. Handle Gradient (Safety check for List<Color>)
-    val brush = if (bill.cardColor.isNotEmpty()) {
-        Brush.horizontalGradient(bill.cardColor)
-    } else {
-        Brush.horizontalGradient(listOf(Color.Gray, Color.DarkGray))
-    }
+    val card = cardState.card
+    val bill = cardState.latestBill
+
+    // Color Handling
+    val cardColor = Color(card.colorArgb)
+    // Create a simple gradient or solid color
+    val brush = Brush.horizontalGradient(
+        listOf(cardColor, cardColor.copy(alpha = 0.8f))
+    )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable { onItemClick(0) }, // ID handling to be fixed in data model
+            .clickable { onItemClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -65,7 +71,6 @@ fun CreditCardItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // --- HEAD STYLE: Polished Circular Icon ---
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -74,23 +79,22 @@ fun CreditCardItem(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = IconUtils.getBankIcon(bill.bankName),
+                                imageVector = IconUtils.getBankIcon(card.bankName),
                                 contentDescription = null,
                                 tint = Color.White
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        // ------------------------------------------
 
                         Column {
                             Text(
-                                text = bill.bankName,
+                                text = card.bankName,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = "•••• ${bill.cardNumber.takeLast(4)}",
+                                text = "•••• ${card.last4Digits}",
                                 color = Color.White.copy(alpha = 0.8f),
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -98,56 +102,83 @@ fun CreditCardItem(
                     }
                     
                     // Status Badge
-                    if (bill.status == BillStatus.PAID) {
-                         Box(
-                            modifier = Modifier
-                                .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text("PAID", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    if (bill != null) {
+                        if (bill.isPaid) {
+                            Box(
+                                modifier = Modifier
+                                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("PAID", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                             // Days Left Logic
+                            val dueDate = Instant.ofEpochMilli(bill.dueDate).atZone(ZoneId.systemDefault()).toLocalDate()
+                            val today = java.time.LocalDate.now()
+                            val daysLeft = ChronoUnit.DAYS.between(today, dueDate)
+
+                             Text(
+                                text = if (daysLeft < 0) "Overdue" else "$daysLeft days left",
+                                color = if (daysLeft < 0) Color(0xFFFFCDD2) else Color.White,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = if (daysLeft < 0) FontWeight.Bold else FontWeight.Normal
+                            )
                         }
-                    } else {
-                         Text(
-                            text = "${bill.daysLeft} days left",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodySmall
-                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Footer Info
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Column {
-                        Text(
-                            text = "Total Due",
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            text = bill.totalDue, // Using formatted string from MainActivity
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.headlineSmall
-                        )
+                if (bill != null) {
+                    val formattedAmount = NumberFormat.getCurrencyInstance(Locale("en", "IN")).format(bill.amount)
+                    val formattedDate = Instant.ofEpochMilli(bill.dueDate)
+                        .atZone(ZoneId.systemDefault())
+                        .format(DateTimeFormatter.ofPattern("dd MMM"))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Column {
+                            Text(
+                                text = "Total Due",
+                                color = Color.White.copy(alpha = 0.8f),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = formattedAmount,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Due Date",
+                                color = Color.White.copy(alpha = 0.8f),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = formattedDate,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "Due Date",
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            text = bill.dueDate, // Using formatted string from MainActivity
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                } else {
+                    // No Bill Set State
+                    Button(
+                        onClick = { onItemClick() }, // Reuse click which will open "Set Due" dialog
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = 0.2f),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Set Due for Current Month")
                     }
                 }
             }
