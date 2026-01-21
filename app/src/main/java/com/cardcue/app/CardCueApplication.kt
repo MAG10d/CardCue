@@ -5,24 +5,27 @@ import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.cardcue.app.data.AppContainer
-import com.cardcue.app.data.AppDataContainer
+import com.cardcue.app.data.AppDatabase
+import com.cardcue.app.data.BillRepository
+import com.cardcue.app.data.UserPreferencesRepository
 import com.cardcue.app.worker.BillReminderWorker
 import java.util.concurrent.TimeUnit
 
 class CardCueApplication : Application(), Configuration.Provider {
-    lateinit var container: AppContainer
+
+    // Database & Repositories (From Remote)
+    val database by lazy { AppDatabase.getDatabase(this) }
+    val billRepository by lazy { BillRepository(database.billDao()) }
+    val userPreferencesRepository by lazy { UserPreferencesRepository(this) }
 
     override fun onCreate() {
         super.onCreate()
-        container = AppDataContainer(this)
         setupWorker()
     }
 
     private fun setupWorker() {
+        // Run daily
         val workRequest = PeriodicWorkRequestBuilder<BillReminderWorker>(1, TimeUnit.DAYS)
-            // Ideally start at 8 AM, but for now periodic daily is fine.
-            // WorkManager handles constraints and battery optimizations.
             .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(

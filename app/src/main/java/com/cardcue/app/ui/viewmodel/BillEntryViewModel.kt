@@ -10,9 +10,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.cardcue.app.CardCueApplication
-import com.cardcue.app.data.BillStatus
-import com.cardcue.app.data.BillsRepository
-import com.cardcue.app.data.CreditCardBill
+import com.cardcue.app.data.BillEntity
+import com.cardcue.app.data.BillRepository
+import com.cardcue.app.model.BillStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,34 +35,31 @@ data class BillEntryUiState(
     val isEntryValid: Boolean = false
 )
 
-fun CreditCardBill.toUiState(): BillEntryUiState = BillEntryUiState(
+fun BillEntity.toUiState(): BillEntryUiState = BillEntryUiState(
     id = id,
     bankName = bankName,
     cardNumber = cardNumber,
-    totalDue = totalDue.toString(),
-    minDue = minDue.toString(),
+    totalDue = amount.toString(),
+    minDue = (amount / 10).toString(), // Mock logic as Entity lacks minDue
     dueDate = dueDate,
-    recurringDayOfMonth = recurringDayOfMonth,
-    reminderOffsets = reminderOffsets,
-    status = status,
-    cardColor = cardColor,
-    isEntryValid = true // Assumed valid if existing
+    recurringDayOfMonth = null, // Entity lacks this
+    reminderOffsets = emptyList(), // Entity lacks this
+    status = if (isPaid) BillStatus.PAID else BillStatus.UNPAID,
+    cardColor = colorArgb,
+    isEntryValid = true
 )
 
-fun BillEntryUiState.toBill(): CreditCardBill = CreditCardBill(
+fun BillEntryUiState.toBill(): BillEntity = BillEntity(
     id = id,
     bankName = bankName,
     cardNumber = cardNumber,
-    totalDue = totalDue.toDoubleOrNull() ?: 0.0,
-    minDue = minDue.toDoubleOrNull() ?: 0.0,
+    amount = totalDue.toDoubleOrNull() ?: 0.0,
     dueDate = dueDate ?: System.currentTimeMillis(),
-    recurringDayOfMonth = recurringDayOfMonth,
-    reminderOffsets = reminderOffsets,
-    status = status,
-    cardColor = cardColor
+    isPaid = status == BillStatus.PAID,
+    colorArgb = cardColor
 )
 
-class BillEntryViewModel(private val repository: BillsRepository) : ViewModel() {
+class BillEntryViewModel(private val repository: BillRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BillEntryUiState())
     val uiState: StateFlow<BillEntryUiState> = _uiState.asStateFlow()
@@ -87,9 +84,9 @@ class BillEntryViewModel(private val repository: BillsRepository) : ViewModel() 
             viewModelScope.launch {
                 val bill = _uiState.value.toBill()
                 if (bill.id == 0) {
-                    repository.insertBill(bill)
+                    repository.insert(bill)
                 } else {
-                    repository.updateBill(bill)
+                    repository.update(bill)
                 }
             }
         }
@@ -97,11 +94,10 @@ class BillEntryViewModel(private val repository: BillsRepository) : ViewModel() 
 
     fun loadBill(billId: Int) {
         viewModelScope.launch {
-            repository.getBillStream(billId)
-                .filterNotNull()
-                .collect { bill ->
-                    _uiState.value = bill.toUiState()
-                }
+            val bill = repository.getBillById(billId)
+            if (bill != null) {
+                _uiState.value = bill.toUiState()
+            }
         }
     }
 
@@ -115,7 +111,7 @@ class BillEntryViewModel(private val repository: BillsRepository) : ViewModel() 
 
         // Persist to DB
         viewModelScope.launch {
-            repository.updateBill(updatedState.toBill())
+            repository.update(updatedState.toBill())
         }
     }
 
@@ -123,7 +119,7 @@ class BillEntryViewModel(private val repository: BillsRepository) : ViewModel() 
         val bill = _uiState.value.toBill()
         if (bill.id != 0) {
             viewModelScope.launch {
-                repository.deleteBill(bill)
+                repository.delete(bill)
             }
         }
     }
@@ -136,7 +132,7 @@ class BillEntryViewModel(private val repository: BillsRepository) : ViewModel() 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = (this[APPLICATION_KEY] as CardCueApplication)
-                BillEntryViewModel(application.container.billsRepository)
+                BillEntryViewModel(application.billRepository)
             }
         }
     }
