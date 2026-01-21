@@ -12,12 +12,10 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.cardcue.app.CardCueApplication
-import com.cardcue.app.data.BillStatus
+import com.cardcue.app.model.BillStatus
 import kotlinx.coroutines.flow.first
 import java.util.Calendar
-import java.util.Date
 import java.util.concurrent.TimeUnit
-import kotlin.math.abs
 
 class BillReminderWorker(
     appContext: Context,
@@ -26,11 +24,11 @@ class BillReminderWorker(
 
     override suspend fun doWork(): Result {
         val application = applicationContext as CardCueApplication
-        val repository = application.container.billsRepository
+        val repository = application.billRepository
 
         try {
-            val bills = repository.getAllBillsStream().first()
-            val unpaidBills = bills.filter { it.status == BillStatus.UNPAID }
+            val bills = repository.allBills.first()
+            val unpaidBills = bills.filter { !it.isPaid }
 
             val today = Calendar.getInstance()
             // Reset time to start of day for accurate comparison
@@ -58,15 +56,16 @@ class BillReminderWorker(
 
                 // Check Reminder Offsets (e.g., offsets = [1, 3] means remind 1 day before and 3 days before)
                 // If diffDays is in the list, OR if diffDays is 0 (Due Today)
-
-                val shouldNotify = diffDays == 0 || bill.reminderOffsets.contains(diffDays)
+                // Note: BillEntity currently lacks reminderOffsets, so defaulting to checking only for Today.
+                // val shouldNotify = diffDays == 0 || bill.reminderOffsets.contains(diffDays)
+                val shouldNotify = diffDays == 0
 
                 if (shouldNotify) {
                     showNotification(
                         applicationContext,
                         bill.id,
                         "Bill Due Reminder",
-                        "${bill.bankName} bill of ₹${bill.totalDue} is due ${if (diffDays == 0) "TODAY" else "in $diffDays days"}."
+                        "${bill.bankName} bill of ₹${bill.amount} is due ${if (diffDays == 0) "TODAY" else "in $diffDays days"}."
                     )
                 }
             }

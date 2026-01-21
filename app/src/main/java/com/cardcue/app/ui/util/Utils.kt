@@ -12,7 +12,7 @@ import java.util.Locale
 
 object FormattingUtils {
     fun formatCurrency(amount: Double): String {
-        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN")) // Assuming INR based on request examples
+        val format = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-IN")) // Assuming INR based on request examples
         return format.format(amount)
     }
 

@@ -13,39 +13,24 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.cardcue.app.data.BillEntity
 import com.cardcue.app.model.BillStatus
 import com.cardcue.app.model.CreditCardBill
 import com.cardcue.app.ui.AddBillScreen
 import com.cardcue.app.ui.BillDetailScreen
 import com.cardcue.app.ui.CalendarScreen
-import com.cardcue.app.ui.CreditCardItem
 import com.cardcue.app.ui.EditBillScreen
 import com.cardcue.app.ui.HomeScreen
 import com.cardcue.app.ui.HomeViewModel
 import com.cardcue.app.ui.HomeViewModelFactory
 import com.cardcue.app.ui.SettingsScreen
-import com.cardcue.app.ui.components.BottomNavBar
-import com.cardcue.app.ui.components.StatBox
 import com.cardcue.app.ui.navigation.Screen
 import com.cardcue.app.ui.theme.CardCueTheme
 import com.cardcue.app.ui.theme.PurpleGradientEnd
 import com.cardcue.app.ui.theme.PurpleGradientStart
 import com.cardcue.app.ui.theme.RedGradientEnd
 import com.cardcue.app.ui.theme.RedGradientStart
-import com.cardcue.app.ui.theme.StatTextLate
-import com.cardcue.app.ui.theme.StatTextPaid
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -146,34 +131,8 @@ class MainActivity : FragmentActivity() {
                     // --- ADD BILL SCREEN ---
                     composable(Screen.AddBill.route) {
                         AddBillScreen(
-                            onBackClick = { navController.popBackStack() },
-                            onSaveClick = { bankName, cardNumber, totalDue, dueDateStr ->
-                                try {
-                                    // Basic Date Parsing DD/MM/YYYY
-                                    val parts = dueDateStr.split("/")
-                                    if (parts.size == 3) {
-                                        val day = parts[0].toInt()
-                                        val month = parts[1].toInt()
-                                        val year = parts[2].toInt()
-                                        val date = java.time.LocalDate.of(year, month, day)
-                                        val epoch = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-
-                                        viewModel.addBill(
-                                            BillEntity(
-                                                bankName = bankName,
-                                                cardNumber = cardNumber,
-                                                amount = totalDue.toDoubleOrNull() ?: 0.0,
-                                                dueDate = epoch,
-                                                isPaid = false,
-                                                colorArgb = 0
-                                            )
-                                        )
-                                    }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                                navController.popBackStack()
-                            }
+                            onBackClick = { navController.popBackStack() }
+                            // onSaveClick removed, handled by ViewModel in AddBillScreen
                         )
                     }
 
@@ -256,92 +215,5 @@ class MainActivity : FragmentActivity() {
             .build()
 
         biometricPrompt.authenticate(promptInfo)
-    }
-}
-
-// --- REFACTORED HOME SCREEN COMPOSABLE ---
-@Composable
-fun HomeScreen(
-    bills: List<CreditCardBill>, // Accept data directly instead of ViewModel
-    onBottomNavClick: (String) -> Unit,
-    onAddBillClick: () -> Unit,
-    onBillClick: (Int) -> Unit
-) {
-    // Calculate Stats from the list
-    val totalCount = bills.size
-    val dueCount = bills.count { it.status == BillStatus.DUE }
-    val paidCount = bills.count { it.status == BillStatus.PAID }
-    // Basic late check logic could go here, for now assuming 0
-    val lateCount = 0 
-
-    Scaffold(
-        bottomBar = {
-            BottomNavBar(
-                selectedItem = Screen.Home.route,
-                onItemSelected = onBottomNavClick
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onAddBillClick) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Bill")
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Header
-            Text(
-                text = "CardCue",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Sub-header
-            Text(
-                text = "Your Statements",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Showing all $totalCount statements",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Stats Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatBox(count = totalCount.toString(), label = "Total", isSelected = true)
-                StatBox(count = dueCount.toString(), label = "Due")
-                StatBox(count = lateCount.toString(), label = "Late", textColor = StatTextLate)
-                StatBox(count = paidCount.toString(), label = "Paid", textColor = StatTextPaid)
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Credit Card List
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(bills) { bill ->
-                    CreditCardItem(
-                        bill = bill,
-                        onItemClick = onBillClick
-                    )
-                }
-            }
-        }
     }
 }
