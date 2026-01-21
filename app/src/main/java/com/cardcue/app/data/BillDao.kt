@@ -10,18 +10,18 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BillDao {
+    @Query("SELECT * FROM bills ORDER BY dueDate ASC")
+    fun getAllBills(): Flow<List<BillEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(bill: CreditCardBill)
+    suspend fun insertBill(bill: BillEntity)
 
     @Update
-    suspend fun update(bill: CreditCardBill)
+    suspend fun updateBill(bill: BillEntity)
 
     @Delete
-    suspend fun delete(bill: CreditCardBill)
+    suspend fun deleteBill(bill: BillEntity)
 
-    @Query("SELECT * from bills WHERE id = :id")
-    fun getBill(id: Int): Flow<CreditCardBill?>
-
-    @Query("SELECT * from bills")
-    fun getAllBills(): Flow<List<CreditCardBill>>
+    @Query("SELECT * FROM bills WHERE id = :id")
+    suspend fun getBillById(id: Int): BillEntity?
 }

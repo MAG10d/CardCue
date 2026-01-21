@@ -61,16 +61,15 @@ dependencies {
     // Extended icons are useful but larger. Using standard for now unless specific needed.
     implementation(libs.androidx.material.icons.extended)
 
-    // Room
+    // MERGED: Room (using KSP), WorkManager, DataStore, Biometric, Gson
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler) // KSP handles the compiler
 
-    // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
-
-    // Gson
-    implementation(libs.gson)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.biometric)
+    implementation(libs.google.gson)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
