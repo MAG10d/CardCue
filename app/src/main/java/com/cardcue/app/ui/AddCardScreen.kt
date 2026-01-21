@@ -10,12 +10,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -92,7 +96,7 @@ fun AddCardScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
-                .androidx.compose.foundation.verticalScroll(androidx.compose.foundation.rememberScrollState())
+                .verticalScroll(rememberScrollState())
         ) {
             Text("Card Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
@@ -131,7 +135,7 @@ fun AddCardScreen(
                         if (isSelected) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = androidx.compose.material.icons.Icons.Default.Check,
+                                    imageVector = Icons.Default.Check,
                                     contentDescription = null,
                                     tint = Color.White
                                 )
@@ -163,14 +167,6 @@ fun AddCardScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-
-                // TODO: Replace with DatePicker in production. For now, defaulting to today + 20 days if empty or parsing logic
-                // Using a simple Day Input for simplicity in this prototype or just assuming user enters day
-                // Let's implement a very simple DatePicker Dialog or just inputs for Day/Month
-                // For this prototype, I'll assume Due Date is Today + 20 days if not complex
-                // Let's just use a simple text field for "Days from now" to keep it safe?
-                // No, let's use a default logic: If they add a bill, let's say "Due Date" is mandatory.
-                // I'll add a simple "Due Date (DD/MM/YYYY)" text field.
 
                 OutlinedTextField(
                     value = dueDateString,

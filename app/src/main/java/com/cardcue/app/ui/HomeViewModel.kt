@@ -34,6 +34,14 @@ class HomeViewModel(
     private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
+    // Helper for CalendarScreen
+    val allBills: StateFlow<List<BillEntity>> = billRepository.allBills
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     // --- Cards & Latest Bill Logic ---
     val cardUiStates: StateFlow<List<CardUiState>> = billRepository.cardsWithBills
         .combine(billRepository.allBills) { cardsWithBills, _ -> // Trigger update when any bill changes

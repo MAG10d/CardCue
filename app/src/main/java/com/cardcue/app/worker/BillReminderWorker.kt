@@ -12,6 +12,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.cardcue.app.CardCueApplication
+import com.cardcue.app.data.BillEntity
+import com.cardcue.app.data.CardEntity
 import com.cardcue.app.model.BillStatus
 import kotlinx.coroutines.flow.first
 import java.util.Calendar
@@ -25,6 +27,7 @@ class BillReminderWorker(
     override suspend fun doWork(): Result {
         val application = applicationContext as CardCueApplication
         val repository = application.billRepository
+        val cardDao = application.database.cardDao() // Access card dao directly for efficiency
 
         try {
             val bills = repository.allBills.first()
@@ -38,11 +41,8 @@ class BillReminderWorker(
             today.set(Calendar.MILLISECOND, 0)
 
             for (bill in unpaidBills) {
-                // Check if bill is overdue
-                if (bill.dueDate < System.currentTimeMillis()) {
-                    // Already overdue logic handled by UI, but maybe notify once?
-                    // For now, focusing on reminders and due day.
-                }
+                val card = cardDao.getCardById(bill.cardId)
+                val bankName = card?.bankName ?: "Unknown"
 
                 // Check Due Date match
                 val dueDate = Calendar.getInstance().apply { timeInMillis = bill.dueDate }
@@ -54,10 +54,7 @@ class BillReminderWorker(
                 val diffInMillis = dueDate.timeInMillis - today.timeInMillis
                 val diffDays = TimeUnit.MILLISECONDS.toDays(diffInMillis).toInt()
 
-                // Check Reminder Offsets (e.g., offsets = [1, 3] means remind 1 day before and 3 days before)
-                // If diffDays is in the list, OR if diffDays is 0 (Due Today)
-                // Note: BillEntity currently lacks reminderOffsets, so defaulting to checking only for Today.
-                // val shouldNotify = diffDays == 0 || bill.reminderOffsets.contains(diffDays)
+                // Default check: Notify on Due Date
                 val shouldNotify = diffDays == 0
 
                 if (shouldNotify) {
@@ -65,7 +62,7 @@ class BillReminderWorker(
                         applicationContext,
                         bill.id,
                         "Bill Due Reminder",
-                        "${bill.bankName} bill of ₹${bill.amount} is due ${if (diffDays == 0) "TODAY" else "in $diffDays days"}."
+                        "$bankName bill of ₹${bill.amount} is due ${if (diffDays == 0) "TODAY" else "in $diffDays days"}."
                     )
                 }
             }

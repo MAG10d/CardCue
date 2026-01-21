@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -35,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +112,7 @@ fun SetBillDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(if (dueDateMillis != null) "Due Date: $dateString" else "Select Due Date")
-                        Icon(imageVector = androidx.compose.material.icons.Icons.Default.DateRange, contentDescription = null)
+                        Icon(imageVector = Icons.Default.DateRange, contentDescription = null)
                     }
                 }
             }
