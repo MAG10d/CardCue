@@ -166,7 +166,10 @@ fun CalendarScreen(
                         logoResId = 1 // Default icon
                     )
 
-                    CreditCardItem(bill = uiBill)
+                    CreditCardItem(
+                        bill = uiBill,
+                        onItemClick = {} // Placeholder or navigation logic
+                    )
                 }
             }
         }

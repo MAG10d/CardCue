@@ -42,7 +42,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.cardcue.app.data.BillStatus
+import com.cardcue.app.model.BillStatus
 import com.cardcue.app.ui.util.FormattingUtils
 import com.cardcue.app.ui.util.IconUtils
 import com.cardcue.app.ui.viewmodel.BillEntryViewModel
