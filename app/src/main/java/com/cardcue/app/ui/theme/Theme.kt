@@ -41,7 +41,7 @@ private val LightColorScheme = lightColorScheme(
 fun CardCueTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = true, // This default is usually overridden by the caller
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

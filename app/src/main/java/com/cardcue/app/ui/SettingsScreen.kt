@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -14,6 +17,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -24,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,7 +38,10 @@ fun SettingsScreen(
     onBackClick: () -> Unit
 ) {
     val isDarkMode by viewModel.isDarkMode.collectAsState()
+    val useDynamicColors by viewModel.useDynamicColors.collectAsState()
     val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsState()
+    val financialProfile by viewModel.financialProfile.collectAsState()
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
@@ -52,7 +60,46 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
+                .padding(bottom = 32.dp)
+                .verticalScroll(scrollState)
         ) {
+            // Financial Profile Section
+            Text(
+                text = "Financial Profile",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = if (financialProfile.salary == 0.0) "" else financialProfile.salary.toString(),
+                onValueChange = {
+                    val salary = it.toDoubleOrNull() ?: 0.0
+                    viewModel.setSalary(salary)
+                },
+                label = { Text("Monthly Salary") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = financialProfile.payday.toString(),
+                onValueChange = {
+                    val day = it.toIntOrNull()
+                    if (day != null && day in 1..31) {
+                        viewModel.setPayday(day)
+                    }
+                },
+                label = { Text("Payday (Day of Month)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(24.dp))
+
             // Appearance Section
             Text(
                 text = "Appearance",
@@ -61,6 +108,13 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(8.dp))
+
+            SettingToggleRow(
+                title = "Use System Colors",
+                description = "Match your wallpaper (Material You)",
+                isChecked = useDynamicColors,
+                onCheckedChange = { viewModel.setDynamicColors(it) }
+            )
 
             SettingToggleRow(
                 title = "Dark Mode",
@@ -93,7 +147,7 @@ fun SettingsScreen(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Data Section
+            // Data Section (Deprecated/Placeholder)
             Text(
                 text = "Data",
                 style = MaterialTheme.typography.titleMedium,
@@ -104,33 +158,21 @@ fun SettingsScreen(
 
             val context = androidx.compose.ui.platform.LocalContext.current
 
-            // Create launchers for import/export
-            val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
-            ) { uri ->
-                uri?.let { viewModel.exportData(context, it) }
-            }
-
-            val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
-            ) { uri ->
-                uri?.let { viewModel.importData(context, it) }
-            }
-
             androidx.compose.material3.Button(
-                onClick = { exportLauncher.launch("cardcue_backup.json") },
-                modifier = Modifier.fillMaxWidth()
+                onClick = { viewModel.exportData(context, android.net.Uri.EMPTY) }, // URI handling mocked for now as logic is disabled
+                modifier = Modifier.fillMaxWidth(),
+                enabled = false // Disabled as per plan
             ) {
-                Text("Export to JSON")
+                Text("Export to JSON (Coming Soon)")
             }
 
             androidx.compose.material3.OutlinedButton(
-                onClick = { importLauncher.launch(arrayOf("application/json")) },
-                modifier = Modifier.fillMaxWidth()
+                onClick = { viewModel.importData(context, android.net.Uri.EMPTY) }, // URI handling mocked
+                modifier = Modifier.fillMaxWidth(),
+                enabled = false // Disabled as per plan
             ) {
-                Text("Import from JSON")
+                Text("Import from JSON (Coming Soon)")
             }
-
         }
     }
 }

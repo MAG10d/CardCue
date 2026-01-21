@@ -23,4 +23,11 @@ sealed class Screen(val route: String, val arguments: List<NamedNavArgument> = e
     ) {
         fun createRoute(billId: Int) = "edit_bill/$billId"
     }
+
+    object EditCard : Screen(
+        route = "edit_card/{cardId}",
+        arguments = listOf(navArgument("cardId") { type = NavType.IntType })
+    ) {
+        fun createRoute(cardId: Int) = "edit_card/$cardId"
+    }
 }

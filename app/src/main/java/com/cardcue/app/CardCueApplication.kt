@@ -15,7 +15,7 @@ class CardCueApplication : Application(), Configuration.Provider {
 
     // Database & Repositories (From Remote)
     val database by lazy { AppDatabase.getDatabase(this) }
-    val billRepository by lazy { BillRepository(database.billDao()) }
+    val billRepository by lazy { BillRepository(database.billDao(), database.cardDao()) }
     val userPreferencesRepository by lazy { UserPreferencesRepository(this) }
 
     override fun onCreate() {

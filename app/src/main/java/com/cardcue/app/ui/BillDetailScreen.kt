@@ -162,10 +162,6 @@ fun BillDetailScreen(
             DetailRow(label = "Card Number", value = "•••• ${uiState.cardNumber}")
             DetailRow(label = "Due Date", value = uiState.dueDate?.let { FormattingUtils.formatDate(it) } ?: "-")
             DetailRow(label = "Status", value = uiState.status.name)
-
-            if (uiState.recurringDayOfMonth != null) {
-                DetailRow(label = "Recurring", value = "Every ${uiState.recurringDayOfMonth}th of month")
-            }
         }
     }
 }

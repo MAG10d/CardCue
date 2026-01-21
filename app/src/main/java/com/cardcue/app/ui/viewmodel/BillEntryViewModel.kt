@@ -21,43 +21,26 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
 
+// Alias for compatibility if needed, or I can rename the class in UI files
+typealias BillUiState = BillEntryUiState
+
 data class BillEntryUiState(
     val id: Int = 0,
+    val cardId: Int = 0,
+    val totalDue: String = "",
+    val dueDate: Long? = null,
+    val status: BillStatus = BillStatus.UNPAID,
+    // Extra fields needed for UI display which come from CardEntity
     val bankName: String = "",
     val cardNumber: String = "",
-    val totalDue: String = "",
-    val minDue: String = "",
-    val dueDate: Long? = null,
-    val recurringDayOfMonth: Int? = null,
-    val reminderOffsets: List<Int> = emptyList(),
-    val status: BillStatus = BillStatus.UNPAID,
     val cardColor: Int = 0xFF000000.toInt(),
     val isEntryValid: Boolean = false
 )
 
-fun BillEntity.toUiState(): BillEntryUiState = BillEntryUiState(
-    id = id,
-    bankName = bankName,
-    cardNumber = cardNumber,
-    totalDue = amount.toString(),
-    minDue = (amount / 10).toString(), // Mock logic as Entity lacks minDue
-    dueDate = dueDate,
-    recurringDayOfMonth = null, // Entity lacks this
-    reminderOffsets = emptyList(), // Entity lacks this
-    status = if (isPaid) BillStatus.PAID else BillStatus.UNPAID,
-    cardColor = colorArgb,
-    isEntryValid = true
-)
-
-fun BillEntryUiState.toBill(): BillEntity = BillEntity(
-    id = id,
-    bankName = bankName,
-    cardNumber = cardNumber,
-    amount = totalDue.toDoubleOrNull() ?: 0.0,
-    dueDate = dueDate ?: System.currentTimeMillis(),
-    isPaid = status == BillStatus.PAID,
-    colorArgb = cardColor
-)
+// Mapping helpers need to be async or handle missing card info if we want full details.
+// However, BillEntity NO LONGER has bankName, etc.
+// The ViewModel needs to fetch Card info too.
+// This is the tricky part I anticipated.
 
 class BillEntryViewModel(private val repository: BillRepository) : ViewModel() {
 
@@ -72,8 +55,6 @@ class BillEntryViewModel(private val repository: BillRepository) : ViewModel() {
 
     private fun validateInput(uiState: BillEntryUiState = _uiState.value): Boolean {
         return with(uiState) {
-            bankName.isNotBlank() &&
-            cardNumber.isNotBlank() &&
             totalDue.toDoubleOrNull() != null &&
             dueDate != null
         }
@@ -82,11 +63,18 @@ class BillEntryViewModel(private val repository: BillRepository) : ViewModel() {
     fun saveBill() {
         if (validateInput()) {
             viewModelScope.launch {
-                val bill = _uiState.value.toBill()
+                val state = _uiState.value
+                val bill = BillEntity(
+                    id = state.id,
+                    cardId = state.cardId,
+                    amount = state.totalDue.toDoubleOrNull() ?: 0.0,
+                    dueDate = state.dueDate ?: System.currentTimeMillis(),
+                    isPaid = state.status == BillStatus.PAID
+                )
                 if (bill.id == 0) {
-                    repository.insert(bill)
+                    repository.insertBill(bill)
                 } else {
-                    repository.update(bill)
+                    repository.updateBill(bill)
                 }
             }
         }
@@ -96,7 +84,19 @@ class BillEntryViewModel(private val repository: BillRepository) : ViewModel() {
         viewModelScope.launch {
             val bill = repository.getBillById(billId)
             if (bill != null) {
-                _uiState.value = bill.toUiState()
+                // We need card info to populate UI
+                val card = repository.getCardById(bill.cardId)
+                _uiState.value = BillEntryUiState(
+                    id = bill.id,
+                    cardId = bill.cardId,
+                    totalDue = bill.amount.toString(),
+                    dueDate = bill.dueDate,
+                    status = if (bill.isPaid) BillStatus.PAID else BillStatus.UNPAID,
+                    bankName = card?.bankName ?: "Unknown",
+                    cardNumber = card?.last4Digits ?: "",
+                    cardColor = card?.colorArgb ?: 0xFF000000.toInt(),
+                    isEntryValid = true
+                )
             }
         }
     }
@@ -105,27 +105,37 @@ class BillEntryViewModel(private val repository: BillRepository) : ViewModel() {
         val currentStatus = _uiState.value.status
         val newStatus = if (currentStatus == BillStatus.PAID) BillStatus.UNPAID else BillStatus.PAID
 
-        // Update local state immediately for UI responsiveness
-        val updatedState = _uiState.value.copy(status = newStatus)
-        _uiState.value = updatedState
+        // Update local state
+        _uiState.update { it.copy(status = newStatus) }
 
-        // Persist to DB
+        // Persist
         viewModelScope.launch {
-            repository.update(updatedState.toBill())
+            val state = _uiState.value
+            val bill = BillEntity(
+                id = state.id,
+                cardId = state.cardId,
+                amount = state.totalDue.toDoubleOrNull() ?: 0.0,
+                dueDate = state.dueDate ?: System.currentTimeMillis(),
+                isPaid = newStatus == BillStatus.PAID
+            )
+            repository.updateBill(bill)
         }
     }
 
     fun deleteBill() {
-        val bill = _uiState.value.toBill()
-        if (bill.id != 0) {
+        val state = _uiState.value
+        if (state.id != 0) {
             viewModelScope.launch {
-                repository.delete(bill)
+                 val bill = BillEntity(
+                    id = state.id,
+                    cardId = state.cardId,
+                    amount = state.totalDue.toDoubleOrNull() ?: 0.0,
+                    dueDate = state.dueDate ?: System.currentTimeMillis(),
+                    isPaid = state.status == BillStatus.PAID
+                )
+                repository.deleteBill(bill)
             }
         }
-    }
-
-    fun reset() {
-        _uiState.value = BillEntryUiState()
     }
 
     companion object {

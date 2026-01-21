@@ -13,6 +13,12 @@ interface BillDao {
     @Query("SELECT * FROM bills ORDER BY dueDate ASC")
     fun getAllBills(): Flow<List<BillEntity>>
 
+    @Query("SELECT * FROM bills WHERE cardId = :cardId ORDER BY dueDate DESC")
+    fun getBillsForCard(cardId: Int): Flow<List<BillEntity>>
+
+    @Query("SELECT * FROM bills WHERE isPaid = 0")
+    fun getUnpaidBills(): Flow<List<BillEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBill(bill: BillEntity)
 

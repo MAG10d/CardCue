@@ -14,26 +14,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.*
-import com.cardcue.app.data.BillEntity
-import com.cardcue.app.model.BillStatus
-import com.cardcue.app.model.CreditCardBill
-import com.cardcue.app.ui.AddBillScreen
+import com.cardcue.app.ui.AddCardScreen
 import com.cardcue.app.ui.BillDetailScreen
 import com.cardcue.app.ui.CalendarScreen
 import com.cardcue.app.ui.EditBillScreen
+import com.cardcue.app.ui.EditCardScreen
 import com.cardcue.app.ui.HomeScreen
 import com.cardcue.app.ui.HomeViewModel
 import com.cardcue.app.ui.HomeViewModelFactory
 import com.cardcue.app.ui.SettingsScreen
 import com.cardcue.app.ui.navigation.Screen
 import com.cardcue.app.ui.theme.CardCueTheme
-import com.cardcue.app.ui.theme.PurpleGradientEnd
-import com.cardcue.app.ui.theme.PurpleGradientStart
-import com.cardcue.app.ui.theme.RedGradientEnd
-import com.cardcue.app.ui.theme.RedGradientStart
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 // Helpers for Icons
 object BankIcons {
@@ -76,34 +67,19 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             val isDarkMode = viewModel.isDarkMode.collectAsState(initial = false).value
+            val useDynamicColors = viewModel.useDynamicColors.collectAsState(initial = true).value
 
-            CardCueTheme(darkTheme = isDarkMode) {
+            CardCueTheme(
+                darkTheme = isDarkMode,
+                dynamicColor = useDynamicColors
+            ) {
                 val navController = rememberNavController()
 
-                // 1. Observe Real Data from Database
-                val billsEntities = viewModel.allBills.collectAsState(initial = emptyList()).value
-
-                // 2. Map Database Entity to UI Model
-                val bills = billsEntities.map { entity ->
-                    CreditCardBill(
-                        bankName = entity.bankName,
-                        cardNumber = entity.cardNumber,
-                        totalDue = "₹${entity.amount}",
-                        minDue = "₹${entity.amount / 10}",
-                        dueDate = Instant.ofEpochMilli(entity.dueDate).atZone(ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("dd MMM")),
-                        dueDateIso = Instant.ofEpochMilli(entity.dueDate).atZone(ZoneId.systemDefault()).toLocalDate().toString(),
-                        daysLeft = 0, // You can add logic to calculate days left here
-                        cardColor = if (entity.bankName.contains("HDFC", true)) listOf(RedGradientStart, RedGradientEnd) else listOf(PurpleGradientStart, PurpleGradientEnd),
-                        status = if (entity.isPaid) BillStatus.PAID else BillStatus.DUE,
-                        logoResId = 1 // You can implement icon mapping logic here
-                    )
-                }
-
-                // 3. Navigation Host
+                // Navigation Host
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Home.route,
-                    // Fancy Animations from HEAD branch
+                    // Fancy Animations
                     enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) },
                     exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) },
                     popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) },
@@ -113,7 +89,7 @@ class MainActivity : FragmentActivity() {
                     // --- HOME SCREEN ---
                     composable(Screen.Home.route) {
                         HomeScreen(
-                            bills = bills, // Pass the mapped bills directly
+                            viewModel = viewModel,
                             onBottomNavClick = { route ->
                                 if (route != Screen.Home.route) {
                                     navController.navigate(route) {
@@ -123,16 +99,35 @@ class MainActivity : FragmentActivity() {
                                     }
                                 }
                             },
-                            onAddBillClick = { navController.navigate(Screen.AddBill.route) },
-                            onBillClick = { billId -> navController.navigate(Screen.BillDetail.createRoute(billId)) }
+                            onAddCardClick = { navController.navigate(Screen.AddBill.route) },
+                            onCardClick = { cardState ->
+                                // New Behavior: Navigate to Edit Card
+                                navController.navigate(Screen.EditCard.createRoute(cardState.card.id))
+                            }
                         )
                     }
 
-                    // --- ADD BILL SCREEN ---
+                    // --- ADD CARD SCREEN ---
                     composable(Screen.AddBill.route) {
-                        AddBillScreen(
+                        AddCardScreen(
+                            onBackClick = { navController.popBackStack() },
+                            onSaveClick = { card, bill ->
+                                viewModel.addCard(card, bill)
+                                navController.popBackStack()
+                            }
+                        )
+                    }
+
+                    // --- EDIT CARD SCREEN (New) ---
+                    composable(
+                        route = Screen.EditCard.route,
+                        arguments = Screen.EditCard.arguments
+                    ) { backStackEntry ->
+                        val cardId = backStackEntry.arguments?.getInt("cardId") ?: 0
+                        EditCardScreen(
+                            cardId = cardId,
+                            viewModel = viewModel,
                             onBackClick = { navController.popBackStack() }
-                            // onSaveClick removed, handled by ViewModel in AddBillScreen
                         )
                     }
 
@@ -203,8 +198,6 @@ class MainActivity : FragmentActivity() {
                 }
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
-                    // Optional: Close app if user cancels
-                    // finish()
                 }
             })
 
