@@ -5,8 +5,6 @@ import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.cardcue.app.data.AppContainer
-import com.cardcue.app.data.AppDataContainer
 import com.cardcue.app.data.AppDatabase
 import com.cardcue.app.data.BillRepository
 import com.cardcue.app.data.UserPreferencesRepository
