@@ -14,16 +14,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.*
-import com.cardcue.app.data.BillEntity
-import com.cardcue.app.model.CardUiState
 import com.cardcue.app.ui.AddCardScreen
 import com.cardcue.app.ui.BillDetailScreen
 import com.cardcue.app.ui.CalendarScreen
 import com.cardcue.app.ui.EditBillScreen
+import com.cardcue.app.ui.EditCardScreen
 import com.cardcue.app.ui.HomeScreen
 import com.cardcue.app.ui.HomeViewModel
 import com.cardcue.app.ui.HomeViewModelFactory
-import com.cardcue.app.ui.SetBillDialog
 import com.cardcue.app.ui.SettingsScreen
 import com.cardcue.app.ui.navigation.Screen
 import com.cardcue.app.ui.theme.CardCueTheme
@@ -77,31 +75,6 @@ class MainActivity : FragmentActivity() {
             ) {
                 val navController = rememberNavController()
 
-                // State for "Set Bill" Dialog
-                var showSetBillDialog by remember { mutableStateOf(false) }
-                var selectedCardState by remember { mutableStateOf<CardUiState?>(null) }
-
-                if (showSetBillDialog && selectedCardState != null) {
-                    // Determine if we are updating an existing bill or adding a new one
-                    val existingBill = selectedCardState!!.latestBill
-
-                    SetBillDialog(
-                        initialAmount = existingBill?.amount,
-                        initialDate = existingBill?.dueDate,
-                        onDismiss = { showSetBillDialog = false },
-                        onSave = { amount, dueDate ->
-                            if (existingBill != null) {
-                                // Update existing bill
-                                viewModel.updateBill(existingBill.copy(amount = amount, dueDate = dueDate))
-                            } else {
-                                // Add new bill
-                                viewModel.addBillToCard(selectedCardState!!.card.id, amount, dueDate)
-                            }
-                            showSetBillDialog = false
-                        }
-                    )
-                }
-
                 // Navigation Host
                 NavHost(
                     navController = navController,
@@ -126,15 +99,15 @@ class MainActivity : FragmentActivity() {
                                     }
                                 }
                             },
-                            onAddCardClick = { navController.navigate(Screen.AddBill.route) }, // Reusing AddBill route for AddCard for now
+                            onAddCardClick = { navController.navigate(Screen.AddBill.route) },
                             onCardClick = { cardState ->
-                                selectedCardState = cardState
-                                showSetBillDialog = true
+                                // New Behavior: Navigate to Edit Card
+                                navController.navigate(Screen.EditCard.createRoute(cardState.card.id))
                             }
                         )
                     }
 
-                    // --- ADD CARD SCREEN (Replaces AddBill) ---
+                    // --- ADD CARD SCREEN ---
                     composable(Screen.AddBill.route) {
                         AddCardScreen(
                             onBackClick = { navController.popBackStack() },
@@ -142,6 +115,19 @@ class MainActivity : FragmentActivity() {
                                 viewModel.addCard(card, bill)
                                 navController.popBackStack()
                             }
+                        )
+                    }
+
+                    // --- EDIT CARD SCREEN (New) ---
+                    composable(
+                        route = Screen.EditCard.route,
+                        arguments = Screen.EditCard.arguments
+                    ) { backStackEntry ->
+                        val cardId = backStackEntry.arguments?.getInt("cardId") ?: 0
+                        EditCardScreen(
+                            cardId = cardId,
+                            viewModel = viewModel,
+                            onBackClick = { navController.popBackStack() }
                         )
                     }
 

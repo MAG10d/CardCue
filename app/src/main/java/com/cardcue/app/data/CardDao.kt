@@ -10,11 +10,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CardDao {
-    @Query("SELECT * FROM cards ORDER BY id DESC")
+    @Query("SELECT * FROM cards ORDER BY sortOrder ASC, id DESC")
     fun getAllCards(): Flow<List<CardEntity>>
 
     @androidx.room.Transaction
-    @Query("SELECT * FROM cards ORDER BY id DESC")
+    @Query("SELECT * FROM cards ORDER BY sortOrder ASC, id DESC")
     fun getCardsWithBills(): Flow<List<CardWithBills>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

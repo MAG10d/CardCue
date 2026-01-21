@@ -50,17 +50,11 @@ class HomeViewModel(
                 val bills = cardWithBills.bills
 
                 // Strategy to find the "Active" bill to show on card
-                // 1. Unpaid bills (Priority: Oldest unpaid first? Or just any unpaid?)
-                // Requirement: "If there is an UNPAID bill (regardless of month), show that bill."
-                // I will pick the one with earliest due date to encourage paying off debt.
                 val unpaidBill = bills.filter { !it.isPaid }.minByOrNull { it.dueDate }
 
                 val billToShow = if (unpaidBill != null) {
                     unpaidBill
                 } else {
-                    // 2. If no unpaid, check for PAID bill in current month
-                    // "If the card has a bill for the current month..."
-                    // "Current Month" = Due Date falls in current calendar month
                     val currentMonthBills = bills.filter { it.isPaid && isDateInCurrentMonth(it.dueDate) }
                     currentMonthBills.maxByOrNull { it.dueDate } // Latest one
                 }
@@ -135,6 +129,21 @@ class HomeViewModel(
         }
     }
 
+    fun updateCard(card: CardEntity) {
+        viewModelScope.launch {
+            billRepository.updateCard(card)
+        }
+    }
+
+    fun deleteCard(cardId: Int) {
+        viewModelScope.launch {
+            // Need to fetch card first to delete it (Room Delete expects entity)
+            // Or add deleteById to Dao. For now, fetch and delete.
+            val card = billRepository.getCardById(cardId)
+            card?.let { billRepository.deleteCard(it) }
+        }
+    }
+
     fun addBillToCard(cardId: Int, amount: Double, dueDate: Long) {
         viewModelScope.launch {
             val bill = BillEntity(
@@ -187,6 +196,10 @@ class HomeViewModel(
         viewModelScope.launch {
             userPreferencesRepository.setBiometricEnabled(enabled)
         }
+    }
+
+    suspend fun getCardById(id: Int): CardEntity? {
+        return billRepository.getCardById(id)
     }
 
     // --- Helpers ---

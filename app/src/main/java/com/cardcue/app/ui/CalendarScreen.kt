@@ -3,6 +3,7 @@ package com.cardcue.app.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cardcue.app.data.BillEntity
@@ -70,20 +72,6 @@ fun CalendarScreen(
     onBottomNavClick: (String) -> Unit
 ) {
     val cardUiStates by viewModel.cardUiStates.collectAsState()
-
-    // We need to flatten cardUiStates to get all bills if we want to show all history,
-    // BUT HomeViewModel only exposes *Latest* bill in CardUiState.
-    // To support full calendar history, we really should have exposed `allBills` joined with `Card`.
-    // However, `HomeViewModel` does expose `allBills` (raw list of bills).
-    // We can use `allBills` but we need to fetch Card info for each bill to display Bank Name/Color.
-
-    // For this refactor, I'll stick to the existing `allBills` flow in ViewModel which I kept.
-    // I need to join it with Cards.
-    // Ideally, ViewModel should provide `billsWithCardInfo`.
-    // Since I can't easily change ViewModel signature right now without breaking other things or making it complex,
-    // I will try to map `allBills` and match with `cardUiStates` (which has card info).
-    // This is inefficient but works for small datasets.
-
     val allBills by viewModel.allBills.collectAsState()
 
     // Helper map to look up card details
@@ -135,13 +123,26 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Calendar Grid
-            CalendarGrid(
-                yearMonth = currentMonth,
-                bills = allBills,
-                selectedDate = selectedDate,
-                onDateSelected = { selectedDate = it }
-            )
+            // Calendar Grid with Swipe Detection
+            Box(
+                modifier = Modifier.pointerInput(Unit) {
+                    detectHorizontalDragGestures { change, dragAmount ->
+                        change.consume()
+                        if (dragAmount < -50) { // Swiped Left -> Next Month
+                            currentMonth = currentMonth.plusMonths(1)
+                        } else if (dragAmount > 50) { // Swiped Right -> Previous Month
+                            currentMonth = currentMonth.minusMonths(1)
+                        }
+                    }
+                }
+            ) {
+                CalendarGrid(
+                    yearMonth = currentMonth,
+                    bills = allBills,
+                    selectedDate = selectedDate,
+                    onDateSelected = { selectedDate = it }
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
